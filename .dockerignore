@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-server
+.scaffold-config
+data
+.env*
+.git
+output

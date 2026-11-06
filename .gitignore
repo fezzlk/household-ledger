@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-server/
+.scaffold-config
+data/
+.env
+.env.*
+!.env.example
+/output/
+.DS_Store

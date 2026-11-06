@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      target: development
+    ports:
+      - "127.0.0.1:5178:5178"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 5178
+      DB_PATH: /app/data/ledger.sqlite
+    volumes:
+      - .:/app
+      - modules:/app/node_modules
+      - ledger:/app/data
+    init: true
+volumes:
+  modules:
+  ledger:
