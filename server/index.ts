@@ -174,5 +174,5 @@ app.use(
 const port = Number(process.env.PORT ?? 5178),
   host = process.env.HOST ?? "127.0.0.1";
 httpServer.listen(port, host, () =>
-  console.log(`くらしの帳: http://localhost:${port}`),
+  console.log(`くらし通帳: http://localhost:${port}`),
 );

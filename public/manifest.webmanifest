@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "くらしの帳",
-  "short_name": "くらしの帳",
+  "name": "くらし通帳",
+  "short_name": "くらし通帳",
   "lang": "ja",
   "start_url": "/",
   "scope": "/",

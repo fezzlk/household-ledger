@@ -275,7 +275,7 @@ function App() {
       <main className="auth-shell">
         <div className="brand">
           <Leaf />
-          くらしの帳
+          くらし通帳
         </div>
         <p>{error || "読み込んでいます…"}</p>
         {error && (
@@ -291,7 +291,7 @@ function App() {
             <span className="brand-icon">
               <Leaf />
             </span>
-            くらしの帳
+            くらし通帳
           </div>
           <p className="eyebrow">YOUR MONEY, IN ONE PLACE</p>
           <h1>
@@ -492,7 +492,7 @@ function App() {
           <span className="brand-icon">
             <Leaf size={22} />
           </span>
-          くらしの帳
+          くらし通帳
         </div>
         <p className="sidebar-sub">暮らしのお金を、見通しよく。</p>
         <nav>
@@ -523,7 +523,7 @@ function App() {
         <header className="topbar">
           <div className="mobile-brand">
             <Leaf size={20} />
-            くらしの帳
+            くらし通帳
           </div>
           <span className="desktop-note">
             <span className="status-dot" />
@@ -1130,7 +1130,7 @@ function App() {
               <section className="panel">
                 <h2>このアプリについて</h2>
                 <p className="muted">
-                  くらしの帳 · {session.cloud ? "クラウド版" : "ローカル版"} 0.1.0
+                  くらし通帳 · {session.cloud ? "クラウド版" : "ローカル版"} 0.1.0
                   <br />
                   データは{session.cloud ? "クラウドのFirestore" : "このMacのSQLite"}に保存されます。初期設定のサンプル選択は、実データと混在しないため変更できません。外部サービスの自動取得は未接続です。
                 </p>
@@ -1152,7 +1152,7 @@ function App() {
           )}
           <footer className="page-footer">
             <Leaf size={14} />
-            くらしの帳<span>お金の流れを、ひとつに。</span>
+            くらし通帳<span>お金の流れを、ひとつに。</span>
           </footer>
         </main>
       </div>

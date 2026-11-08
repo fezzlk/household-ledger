@@ -1,4 +1,4 @@
-# くらしの帳（仮称 household-ledger）
+# くらし通帳（household-ledger）
 
 iPhone向けの個人用家計管理アプリ。本人の支出、カード請求、立替とPayPayでの回収を区別します。
 
