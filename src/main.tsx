@@ -120,6 +120,7 @@ function App() {
     [toast, setToast] = useState(""),
     [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<Modal>(null),
+    [editingAccount, setEditingAccount] = useState<Account | null>(null),
     [selectedClaim, setSelectedClaim] = useState(""),
     [selectedBill, setSelectedBill] = useState("");
   const [entryKind, setEntryKind] = useState("expense"),
@@ -182,8 +183,9 @@ function App() {
       setBusy(false);
     }
   }
-  function open(type: Modal) {
+  function open(type: Modal, account: Account | null = null) {
     setError("");
+    setEditingAccount(account);
     setModal(type);
   }
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -192,7 +194,16 @@ function App() {
       v = (k: string) => String(form.get(k) ?? ""),
       n = (k: string) => Number(form.get(k));
     const d = today();
-    if (modal === "account")
+    if (modal === "account") {
+      const openingDate = v("openingDate") || undefined;
+      if (editingAccount)
+        return mutate({
+          type: "update-account",
+          accountId: editingAccount.id,
+          name: v("name"),
+          openingBalance: n("openingBalance"),
+          openingDate,
+        });
       return mutate({
         type: "account",
         account: {
@@ -200,8 +211,10 @@ function App() {
           name: v("name"),
           type: v("accountType") as Account["type"],
           openingBalance: n("openingBalance"),
+          openingDate,
         },
       });
+    }
     if (modal === "recurring")
       return mutate({
         type: "recurring",
@@ -1068,11 +1081,18 @@ function App() {
                     <div className="grow">
                       <strong>{a.name}</strong>
                       <small>
-                        {accountLabels[a.type]} · 開始残高{" "}
-                        {yen(a.openingBalance)}
+                        {accountLabels[a.type]} ·{" "}
+                        {a.openingDate ? `${a.openingDate} 開始` : "開始日なし"}{" "}
+                        · 開始残高 {yen(a.openingBalance)}
                       </small>
                     </div>
                     <strong>{yen(balance(state, a))}</strong>
+                    <button
+                      className="text-button"
+                      onClick={() => open("account", a)}
+                    >
+                      修正
+                    </button>
                   </div>
                 ))}
                 {!state.accounts.length && (
@@ -1124,7 +1144,7 @@ function App() {
                   </button>
                 </div>
                 <small className="muted">
-                  追加読込は既存データを上書きしません。PayPayの開始残高は、取り込む最初の取引より前の残高を指定してください。
+                  追加読込は既存データを上書きしません。口座の開始日より前の明細は、月ごとの収支には入りますが残高には影響しません。
                 </small>
               </section>
               <section className="panel">
@@ -1192,7 +1212,7 @@ function App() {
                 {
                   {
                     entry: "お金の動きを記録",
-                    account: "口座を追加",
+                    account: editingAccount ? "口座を修正" : "口座を追加",
                     bill: "カード請求を確認・追加",
                     recurring: "定期支払いを追加",
                     settlement: "立替金の受け取り",
@@ -1220,11 +1240,16 @@ function App() {
                       required
                       maxLength={160}
                       placeholder="生活用口座 / PayPay など"
+                      defaultValue={editingAccount?.name}
                     />
                   </label>
                   <label>
                     種類
-                    <select name="accountType">
+                    <select
+                      name="accountType"
+                      defaultValue={editingAccount?.type}
+                      disabled={!!editingAccount}
+                    >
                       {Object.entries(accountLabels).map(([k, v]) => (
                         <option key={k} value={k}>
                           {v}
@@ -1233,19 +1258,33 @@ function App() {
                     </select>
                   </label>
                   <label>
+                    開始日
+                    <input
+                      name="openingDate"
+                      type="date"
+                      max={today()}
+                      defaultValue={
+                        editingAccount
+                          ? (editingAccount.openingDate ?? "")
+                          : today()
+                      }
+                    />
+                  </label>
+                  <label>
                     開始残高（円）
                     <input
                       name="openingBalance"
                       type="number"
                       step="1"
-                      defaultValue="0"
+                      defaultValue={editingAccount?.openingBalance ?? 0}
                       required
                       min="-1000000000"
                       max="1000000000"
                     />
                   </label>
                   <p className="field-note">
-                    カードの未払い額はマイナスで入力します。明細を取り込む場合は、その期間より前の残高を指定してください。
+                    開始日の始めの残高を入力します。カードの未払い額はマイナスです。開始日より前の明細を後から取り込んでも、残高は変わりません。
+                    {editingAccount && " 種類は変更できません。"}
                   </p>
                 </>
               ) : modal === "recurring" ? (
