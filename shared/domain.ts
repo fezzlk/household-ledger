@@ -13,16 +13,20 @@ export const date = z
     return !Number.isNaN(d.valueOf()) && d.toISOString().slice(0, 10) === v;
   }, "日付を確認してください");
 const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+const openingBalance = z
+  .number()
+  .int()
+  .safe()
+  .min(-1_000_000_000)
+  .max(1_000_000_000);
 export const accountSchema = z.object({
   id,
   name: text,
   type: z.enum(["bank", "cash", "paypay", "card"]),
-  openingBalance: z
-    .number()
-    .int()
-    .safe()
-    .min(-1_000_000_000)
-    .max(1_000_000_000),
+  // openingBalance is the balance before entries dated on openingDate.
+  // Entries dated earlier are history: they count in monthly totals but not in the balance.
+  openingBalance,
+  openingDate: date.optional(),
 });
 export const entrySchema = z.object({
   id,
@@ -148,6 +152,7 @@ export function claims(s: Ledger) {
 export function balance(s: Ledger, a: Account) {
   return s.entries.reduce((total, e) => {
     if (e.voided) return total;
+    if (a.openingDate && e.date < a.openingDate) return total;
     if (e.accountId === a.id)
       total +=
         e.kind === "income" ||
@@ -178,6 +183,8 @@ export function validateState(input: unknown): Ledger {
     if (new Set(group.map((x) => x.id)).size !== group.length)
       throw new Error("識別子が重複しています");
   const accounts = new Map(s.accounts.map((a) => [a.id, a]));
+  if (s.accounts.some((a) => a.openingDate && a.openingDate > today()))
+    throw new Error("開始日に未来日は指定できません");
   const allClaims = s.entries.flatMap((e) => e.shares);
   if (new Set(allClaims.map((c) => c.id)).size !== allClaims.length)
     throw new Error("立替の識別子が重複しています");
@@ -269,6 +276,13 @@ export function validateState(input: unknown): Ledger {
 
 export const commandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("account"), account: accountSchema }),
+  z.object({
+    type: z.literal("update-account"),
+    accountId: id,
+    name: text,
+    openingBalance,
+    openingDate: date.optional(),
+  }),
   z.object({ type: z.literal("entry"), entry: entrySchema }),
   z.object({ type: z.literal("void-entry"), entryId: id }),
   z.object({ type: z.literal("restore-entry"), entryId: id }),
@@ -304,6 +318,16 @@ export function applyCommand(input: Ledger, raw: unknown): Ledger {
     case "account":
       s.accounts.push(command.account);
       break;
+    case "update-account": {
+      // The account type stays fixed: changing it would break existing entries and card bills.
+      const a = s.accounts.find((a) => a.id === command.accountId);
+      if (!a) throw new Error("口座が見つかりません");
+      a.name = command.name;
+      a.openingBalance = command.openingBalance;
+      if (command.openingDate) a.openingDate = command.openingDate;
+      else delete a.openingDate;
+      break;
+    }
     case "entry": {
       if (
         command.entry.voided ||

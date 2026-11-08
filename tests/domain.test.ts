@@ -425,3 +425,116 @@ test("カード支払の取消は手数料も同時に戻し、復元時の二�
     /支払い記録済み/,
   );
 });
+test("開始日より前の明細は残高に入れず、開始日当日の明細は入れる", () => {
+  const s = fixture();
+  s.accounts[1].openingDate = "2026-01-01";
+  assert.equal(balance(s, s.accounts[1]), -18000);
+  s.accounts[1].openingDate = "2026-01-02";
+  assert.equal(balance(s, s.accounts[1]), 0);
+  assert.equal(monthly(s, "2026-01").expense, 9000);
+});
+test("開始日より前の資金移動は、移動元と移動先のどちらの残高にも入らない", () => {
+  const base = fixture();
+  base.accounts[0].openingDate = "2026-01-03";
+  base.accounts[2].openingDate = "2026-01-03";
+  const s = applyCommand(base, {
+    type: "entry",
+    entry: entrySchema.parse({
+      id: "old-charge",
+      date: "2026-01-02",
+      description: "チャージ",
+      kind: "transfer",
+      amount: 5000,
+      accountId: "bank",
+      toAccountId: "paypay",
+    }),
+  });
+  assert.equal(balance(s, s.accounts[0]), 100000);
+  assert.equal(balance(s, s.accounts[2]), 0);
+});
+test("過去の明細を後から追加読込しても、今の残高は変わらない", () => {
+  const base = fixture();
+  base.entries = [];
+  base.accounts[1].openingBalance = -18000;
+  base.accounts[1].openingDate = "2026-02-01";
+  const history = structuredClone(base);
+  history.entries = fixture().entries;
+  const merged = applyCommand(base, { type: "merge-backup", data: history });
+  assert.equal(merged.entries.length, 1);
+  assert.equal(balance(merged, merged.accounts[1]), -18000);
+  assert.equal(monthly(merged, "2026-01").expense, 9000);
+  assert.equal(claims(merged)[0].remaining, 9000);
+});
+test("口座の名前・開始残高・開始日を修正でき、種類は変わらない", () => {
+  const s = applyCommand(fixture(), {
+    type: "update-account",
+    accountId: "card",
+    name: "楽天カード",
+    openingBalance: -5000,
+    openingDate: "2026-01-02",
+  });
+  assert.deepEqual(s.accounts[1], {
+    id: "card",
+    name: "楽天カード",
+    type: "card",
+    openingBalance: -5000,
+    openingDate: "2026-01-02",
+  });
+  assert.equal(balance(s, s.accounts[1]), -5000);
+  const cleared = applyCommand(s, {
+    type: "update-account",
+    accountId: "card",
+    name: "楽天カード",
+    openingBalance: -5000,
+  });
+  assert.equal(cleared.accounts[1].openingDate, undefined);
+  assert.equal(balance(cleared, cleared.accounts[1]), -23000);
+  assert.throws(
+    () =>
+      applyCommand(s, {
+        type: "update-account",
+        accountId: "missing",
+        name: "x",
+        openingBalance: 0,
+      }),
+    /口座が見つかりません/,
+  );
+  assert.throws(
+    () =>
+      applyCommand(s, {
+        type: "update-account",
+        accountId: "card",
+        name: "x",
+        openingBalance: 0,
+        openingDate: "2099-01-01",
+      }),
+    /開始日に未来日/,
+  );
+});
+test("開始日が未来日の口座は追加できない", () => {
+  assert.throws(
+    () =>
+      applyCommand(fixture(), {
+        type: "account",
+        account: {
+          id: "new",
+          name: "新口座",
+          type: "bank",
+          openingBalance: 0,
+          openingDate: "2099-01-01",
+        },
+      }),
+    /開始日に未来日/,
+  );
+  const added = applyCommand(fixture(), {
+    type: "account",
+    account: {
+      id: "new",
+      name: "新口座",
+      type: "bank",
+      openingBalance: 0,
+      openingDate: today(),
+    },
+  });
+  assert.equal(added.accounts[3].openingDate, today());
+});
